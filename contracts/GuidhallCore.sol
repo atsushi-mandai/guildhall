@@ -150,7 +150,8 @@ contract GuildhallCore is CRDIT, Ownable {
         uint _questId,
         uint _applicationId
     ) public onlyClient(_questId) {
-        require(quests[_questId].status == 1);
+        require(quests[_questId].status == 1, "Something is wrong");
+        require(applications[_applicationId].questId == _questId);
         quests[_questId].status = 2;
         applications[_applicationId].isAssigned = true;
     }
