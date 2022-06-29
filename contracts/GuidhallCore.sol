@@ -16,14 +16,14 @@ contract GuildhallCore is CRDIT, Ownable {
 
     /**********
     *
-    * Events for the GuildhallCore
+    * events for the GuildhallCore
     *
     **********/
 
 
     /**********
     *
-    * Variables for the GuildhallCore
+    * variables for the GuildhallCore
     *
     **********/
 
@@ -31,19 +31,40 @@ contract GuildhallCore is CRDIT, Ownable {
     * @dev quests is an array which stores every Quest.
     * The content of the condition should be clearly written so that 
     * it is easy to determine whether it has been achieved or not.
+    * For languageCode, ISO 639-1 should be used. 
     * For status, 0 is closed, 1 is open, 2 is finished.
     */
     struct Quest {
         address client;
-        address assignedHero;
-        string questTitle;
-        string questBody;
-        string condition;
-        string langCode;
+        string title;
+        string body;
+        string conditions;
+        string languageCode;
         uint reward;
         uint8 status;
     }
     Quest[] public quests;
+    mapping(uint => mapping(address => bool)) public questToHeroToAssigned;
 
+
+    /**********
+    *
+    * public functions for the GuildhallCore
+    *
+    **********/
+
+    function createQuest(
+        string memory _title,
+        string memory _body,
+        string memory _conditions,
+        string memory _languageCode,
+        uint _reward,
+        uint8 _status
+    ) public {
+        require(balanceOf(_msgSender()) >= _reward);
+        _transfer(_msgSender(), address(this), _reward);
+        quests.push(Quest(_msgSender(), _title, _body, _conditions, _languageCode, _reward, _status));
+        //some mint functions here maybe
+    }
 
 }
