@@ -1,7 +1,7 @@
-# guildhall
+# Guildhall
 Guildhall is a web3 project where community members could offer/find a quest.
 
-# guildhall（日本語）
+# Guildhall（日本語）
 
 Guildhall（ギルドホール）は、web3プロジェクトです。ギルドホールには多くのコミュニティメンバーが集まり、お互いに仕事やタスク（クエスト）を依頼したり、受けたりすることができます。
 1. 仕事を依頼したいメンバー（クライアント）は、報酬をステークしてクエストを依頼します。
