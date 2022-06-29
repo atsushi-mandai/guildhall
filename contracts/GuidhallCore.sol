@@ -32,7 +32,12 @@ contract GuildhallCore is CRDIT, Ownable {
     * The content of the condition should be clearly written so that 
     * it is easy to determine whether it has been achieved or not.
     * For languageCode, ISO 639-1 should be used. 
-    * For status, 0 is closed, 1 is open, 2 is finished.
+    * For status,
+    *  0: the quest is closed,
+    *  1: the quest is open for heroes to apply,
+    *  2: hero is chosen and the quest is under execution,
+    *  3: quest is finished and the reward is payed to the hero,
+    *  4: quest is closed without being finished and the reward was returned to the client.
     */
     struct Quest {
         address client;
@@ -53,6 +58,10 @@ contract GuildhallCore is CRDIT, Ownable {
     *
     **********/
 
+    /**
+    * @dev createQuest lets anyone to create a new quest and become a client.
+    * Check the struct Quest for more information about each members of Quest.
+    */
     function createQuest(
         string memory _title,
         string memory _body,
