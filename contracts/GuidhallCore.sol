@@ -32,7 +32,12 @@ contract GuildhallCore is CRDIT, Ownable {
     * The content of the condition should be clearly written so that 
     * it is easy to determine whether it has been achieved or not.
     * For languageCode, ISO 639-1 should be used. 
-    * For status, 0 is closed, 1 is open, 2 is finished.
+    * For status,
+    *  0: the quest is closed,
+    *  1: the quest is open for heroes to apply,
+    *  2: hero is chosen and the quest is under execution,
+    *  3: quest is finished and the reward is payed to the hero,
+    *  4: quest is closed without being finished and the reward was returned to the client.
     */
     struct Quest {
         address client;
@@ -46,6 +51,40 @@ contract GuildhallCore is CRDIT, Ownable {
     Quest[] public quests;
     mapping(uint => mapping(address => bool)) public questToHeroToAssigned;
 
+    /**
+    * @dev Hero makes a Submit when they complete the quest.
+    * For status,
+    *  0: waiting for client confirmation,
+    *  1: submit is accepted,
+    *  2: submit is denied.
+    */
+    struct Submit {
+        uint questId;
+        uint submitTime;
+        uint8 status;
+        string url;
+        string message;
+        string reply;
+    }
+    Submit[] public submits;
+
+
+
+    /**********
+    *
+    * modifiers for the GuildhallCore
+    *
+    **********/
+
+    modifier onlyClient(uint _questId) {
+        require(_msgSender() == quests[_questId].client);
+        _;
+    }
+
+    modifier onlyHero(uint _questId) {
+        require(questToHeroToAssigned[_questId][_msgSender()] == true);
+        _;
+    }
 
     /**********
     *
@@ -53,18 +92,52 @@ contract GuildhallCore is CRDIT, Ownable {
     *
     **********/
 
+    /**
+    * @dev createQuest lets anyone to create a new quest and become a client.
+    * Check the struct Quest for more information about each members of Quest.
+    */
     function createQuest(
         string memory _title,
         string memory _body,
         string memory _conditions,
         string memory _languageCode,
-        uint _reward,
-        uint8 _status
+        uint _reward
     ) public {
         require(balanceOf(_msgSender()) >= _reward);
         _transfer(_msgSender(), address(this), _reward);
-        quests.push(Quest(_msgSender(), _title, _body, _conditions, _languageCode, _reward, _status));
+        quests.push(Quest(_msgSender(), _title, _body, _conditions, _languageCode, _reward, 1));
         //some mint functions here maybe
+    }
+
+    /**
+    * @dev closeQuest lets client close the quest he/she has created.
+    * This function could only be called when the status of the quest is 1(=open).
+    * The reward of the quest he/she has paid to the protocol will be returned.
+    */
+    function closeQuest(uint _questId) public onlyClient(_questId) {
+        require(quests[_questId].status == 1);
+        quests[_questId].status = 0;
+        _transfer(address(this), _msgSender(), quests[_questId].reward);
+    }
+
+    /**
+    * @dev chooseHero lets client choose the hero to execute the quest.
+    */
+    function chooseHero(uint _questId, address _hero) public onlyClient(_questId) {
+        quests[_questId].status = 1;
+        questToHeroToAssigned[_questId][_hero] = true;
+    }
+
+    /**
+    * @dev submitResult lets hero submit a result to his/her client.
+    */
+    function submitResult(
+        uint _questId,
+        string memory _url,
+        string memory _message
+    ) public onlyHero(_questId) {
+        require(quests[_questId].status == 2, "This quest is currently not under execution.");
+        submits.push(Submit(_questId, block.timestamp, 0, _url, _message, "There is no reply yet."));
     }
 
 }
