@@ -5,9 +5,9 @@ pragma solidity ^0.8.0;
 
 import "./extensions/ERC20Capped.sol";
 
-/// @title Wisdom3Token
+/// @title CRDIT
 /// @author Atsushi Mandai
-/// @notice Basic functions of the ERC20 Token WSDM for Wisdom3 will be written here.
+/// @notice Basic functions of the ERC20 Token CRDIT for Guildhall will be written here.
 contract CRDIT is ERC20Capped {
 
     /** 
