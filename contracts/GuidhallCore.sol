@@ -49,7 +49,18 @@ contract GuildhallCore is CRDIT, Ownable {
         uint8 status;
     }
     Quest[] public quests;
-    mapping(uint => mapping(address => bool)) public questToHeroToAssigned;
+
+    /**
+    * @dev Anyone can make an Application.
+    */
+    struct Application {
+        uint questId;
+        address hero;
+        address introducer;
+        string message;
+        bool isAssigned;
+    }
+    Application[] public applications;
 
     /**
     * @dev Hero makes a Submit when they complete the quest.
@@ -69,7 +80,6 @@ contract GuildhallCore is CRDIT, Ownable {
     Submit[] public submits;
 
 
-
     /**********
     *
     * modifiers for the GuildhallCore
@@ -81,10 +91,11 @@ contract GuildhallCore is CRDIT, Ownable {
         _;
     }
 
-    modifier onlyHero(uint _questId) {
-        require(questToHeroToAssigned[_questId][_msgSender()] == true);
+    modifier onlyHero(uint _applicationId) {
+        require(applications[_applicationId].isAssigned == true);
         _;
     }
+
 
     /**********
     *
@@ -121,11 +132,27 @@ contract GuildhallCore is CRDIT, Ownable {
     }
 
     /**
-    * @dev chooseHero lets client choose the hero to execute the quest.
+    * @dev applyToQuest lets any hero apply to a quest.
     */
-    function chooseHero(uint _questId, address _hero) public onlyClient(_questId) {
-        quests[_questId].status = 1;
-        questToHeroToAssigned[_questId][_hero] = true;
+    function applyToQuest(
+        uint _questId,
+        address _introducer,
+        string memory _message
+    ) public {
+        require(quests[_questId].status == 1);
+        applications.push(Application(_questId, _msgSender(), _introducer, _message, false));
+    }
+
+    /**
+    * @dev assignHero lets client choose the hero to assign the quest.
+    */
+    function assignHero(
+        uint _questId,
+        uint _applicationId
+    ) public onlyClient(_questId) {
+        require(quests[_questId].status == 1);
+        quests[_questId].status = 2;
+        applications[_applicationId].isAssigned = true;
     }
 
     /**
@@ -133,9 +160,10 @@ contract GuildhallCore is CRDIT, Ownable {
     */
     function submitResult(
         uint _questId,
+        uint _applicationId,
         string memory _url,
         string memory _message
-    ) public onlyHero(_questId) {
+    ) public onlyHero(_applicationId) {
         require(quests[_questId].status == 2, "This quest is currently not under execution.");
         submits.push(Submit(_questId, block.timestamp, 0, _url, _message, "There is no reply yet."));
     }
