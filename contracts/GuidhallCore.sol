@@ -92,6 +92,7 @@ contract GuildhallCore is CRDIT, Ownable {
     }
 
     modifier onlyHero(uint _applicationId) {
+        require(applications[_applicationId].hero == _msgSender());
         require(applications[_applicationId].isAssigned == true);
         _;
     }
