@@ -27,6 +27,11 @@ contract GuildhallCore is CRDIT, Ownable {
     *
     **********/
 
+    uint confirmationTime = 7 days;
+
+    uint8 introducerReward = 4;
+    uint8 tax = 1;
+
     /**
     * @dev quests is an array which stores every Quest.
     * The content of the condition should be clearly written so that 
@@ -70,12 +75,12 @@ contract GuildhallCore is CRDIT, Ownable {
     *  2: submit is denied.
     */
     struct Submit {
-        uint questId;
-        uint submitTime;
+        uint applicationId;
+        uint dueDate;
         uint8 status;
-        string url;
-        string message;
-        string reply;
+        string resultUrl;
+        string resultMessage;
+        string clientReply;
     }
     Submit[] public submits;
 
@@ -148,26 +153,48 @@ contract GuildhallCore is CRDIT, Ownable {
     * @dev assignHero lets client choose the hero to assign the quest.
     */
     function assignHero(
-        uint _questId,
         uint _applicationId
-    ) public onlyClient(_questId) {
-        require(quests[_questId].status == 1, "Something is wrong");
-        require(applications[_applicationId].questId == _questId);
-        quests[_questId].status = 2;
+    ) public onlyClient(applications[_applicationId].questId) {
+        require(quests[applications[_applicationId].questId].status == 1, "Something is wrong");
+        quests[applications[_applicationId].questId].status = 2;
         applications[_applicationId].isAssigned = true;
     }
 
     /**
     * @dev submitResult lets hero submit a result to his/her client.
     */
-    function submitResult(
-        uint _questId,
+    function submitResult (
         uint _applicationId,
         string memory _url,
         string memory _message
     ) public onlyHero(_applicationId) {
-        require(quests[_questId].status == 2, "This quest is currently not under execution.");
-        submits.push(Submit(_questId, block.timestamp, 0, _url, _message, "There is no reply yet."));
+        require(quests[applications[_applicationId].questId].status == 2, "This quest is currently not under execution.");
+        submits.push(Submit(_applicationId, block.timestamp + confirmationTime , 0, _url, _message, "There is no reply yet."));
+    }
+
+    /**
+    * @dev 
+    * 
+    */
+
+    function approveSubmit(
+        uint _submitId,
+        string memory _reply
+    ) public onlyClient(applications[submits[_submitId].applicationId].questId) {
+        require(quests[applications[submits[_submitId].applicationId].questId].status == 2);
+        _transfer(
+            address(this),
+            applications[submits[_submitId].applicationId].hero,
+            quests[applications[submits[_submitId].applicationId].questId].reward * (100 - introducerReward - tax) / 100
+        );
+        _transfer(
+            address(this),
+            applications[submits[_submitId].applicationId].introducer,
+            quests[applications[submits[_submitId].applicationId].questId].reward * introducerReward / 100
+        );
+        submits[_submitId].status = 1;
+        submits[_submitId].clientReply = _reply;
+        quests[applications[submits[_submitId].applicationId].questId].status = 3;
     }
 
 }
