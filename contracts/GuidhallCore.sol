@@ -28,6 +28,7 @@ contract GuildhallCore is CRDIT, Ownable {
     **********/
 
     uint8 taxRate = 1;
+    uint8 trialTaxrate = 5;
     uint8 introducerReward = 4;
     uint confirmationPeriod = 7 days;
     uint reservePool = 0;
@@ -43,6 +44,7 @@ contract GuildhallCore is CRDIT, Ownable {
     *  2: hero is chosen and the quest is under execution,
     *  3: quest is finished and the reward is payed to the hero,
     *  4: quest is closed without being finished and the reward was returned to the client.
+    *  5: quest is pended.
     */
     struct Quest {
         address client;
@@ -203,6 +205,7 @@ contract GuildhallCore is CRDIT, Ownable {
         string memory _reply
     ) public onlyClient(applications[submits[_submitId].applicationId].questId) {
         require(quests[applications[submits[_submitId].applicationId].questId].status == 2);
+        require(submits[_submitId].status == 0);
         _approveSubmit(_submitId);
         submits[_submitId].clientReply = _reply;
     }
@@ -216,6 +219,7 @@ contract GuildhallCore is CRDIT, Ownable {
         string memory _reply
     ) public onlyClient(applications[submits[_submitId].applicationId].questId) {
         require(quests[applications[submits[_submitId].applicationId].questId].status == 2);
+        require(submits[_submitId].status == 0);
         submits[_submitId].status = 2;
         submits[_submitId].clientReply = _reply;
     }
@@ -230,6 +234,16 @@ contract GuildhallCore is CRDIT, Ownable {
         require(submits[_submitId].status == 0);
         _approveSubmit(_submitId);
         submits[_submitId].clientReply = "Expiration was reported by the hero. This reply is written by the protocol.";
+    }
+
+    function pendQuest(uint _questId) public onlyClient(_questId) {
+        require(quests[_questId].status == 2);
+        quests[_questId].status = 5;
+    }
+
+    function releasePend(uint _questId) public onlyClient(_questId) {
+        require(quests[_questId].status == 5);
+        quests[_questId].status = 2;
     }
 
 
