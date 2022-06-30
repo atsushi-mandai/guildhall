@@ -27,10 +27,9 @@ contract GuildhallCore is CRDIT, Ownable {
     *
     **********/
 
-    uint confirmationTime = 7 days;
-
-    uint8 introducerReward = 4;
     uint8 taxRate = 1;
+    uint8 introducerReward = 4;
+    uint confirmationPeriod = 7 days;
     uint reservePool = 0;
 
     /**
@@ -106,6 +105,27 @@ contract GuildhallCore is CRDIT, Ownable {
 
     /**********
     *
+    * public governance functions for the GuildhallCore
+    *
+    **********/
+
+    function changeTaxRate(uint8 _newRate) public onlyOwner {
+        require(_newRate + introducerReward < 100);
+        taxRate = _newRate;
+    }
+
+    function changeIntroducerReward(uint8 _newReward) public onlyOwner {
+        require(_newReward + taxRate < 100);
+        introducerReward = _newReward;
+    }
+
+    function changeConfirmationPeriod(uint _newPeriod) public onlyOwner {
+        confirmationPeriod = _newPeriod;
+    }
+
+
+    /**********
+    *
     * public functions for the GuildhallCore
     *
     **********/
@@ -170,12 +190,12 @@ contract GuildhallCore is CRDIT, Ownable {
         string memory _message
     ) public onlyHero(_applicationId) {
         require(quests[applications[_applicationId].questId].status == 2, "This quest is currently not under execution.");
-        submits.push(Submit(_applicationId, block.timestamp + confirmationTime , 0, _url, _message, "There is no reply yet."));
+        submits.push(Submit(_applicationId, block.timestamp + confirmationPeriod , 0, _url, _message, "There is no reply yet."));
     }
 
     /**
-    * @dev 
-    * 
+    * @dev approveSubmit lets client approve the submit made by a hero he/she has assigned.
+    * The reward of the quest is destributed to the hero and the introducer.
     */
 
     function approveSubmit(
@@ -183,6 +203,50 @@ contract GuildhallCore is CRDIT, Ownable {
         string memory _reply
     ) public onlyClient(applications[submits[_submitId].applicationId].questId) {
         require(quests[applications[submits[_submitId].applicationId].questId].status == 2);
+        _approveSubmit(_submitId);
+        submits[_submitId].clientReply = _reply;
+    }
+
+    /**
+    * @dev rejectSubmit lets client reject the submit made by a hero he/she has assigned.
+    */
+
+    function rejectSubmit(
+        uint _submitId,
+        string memory _reply
+    ) public onlyClient(applications[submits[_submitId].applicationId].questId) {
+        require(quests[applications[submits[_submitId].applicationId].questId].status == 2);
+        submits[_submitId].status = 2;
+        submits[_submitId].clientReply = _reply;
+    }
+
+    /**
+    * @dev reportExpiration could be pulled by a who has made the submit,
+    * when a client didn't approve nor reject the submit until the dueDate.
+    */
+
+    function reportExpiration(uint _submitId) public onlyHero(submits[_submitId].applicationId) {
+        require(submits[_submitId].dueDate < block.timestamp);
+        require(submits[_submitId].status == 0);
+        _approveSubmit(_submitId);
+        submits[_submitId].clientReply = "Expiration was reported by the hero. This reply is written by the protocol.";
+    }
+
+
+    /**********
+    *
+    * internal functions for the GuildhallCore
+    *
+    **********/
+
+    /**
+    * @dev change the status of the submit and quest, then distribute the reward.
+    */
+
+    function _approveSubmit(uint _submitId) internal {
+        submits[_submitId].status = 1;
+        quests[applications[submits[_submitId].applicationId].questId].status = 3;
+        reservePool = reservePool + (quests[applications[submits[_submitId].applicationId].questId].reward * taxRate);
         _transfer(
             address(this),
             applications[submits[_submitId].applicationId].hero,
@@ -193,24 +257,6 @@ contract GuildhallCore is CRDIT, Ownable {
             applications[submits[_submitId].applicationId].introducer,
             quests[applications[submits[_submitId].applicationId].questId].reward * introducerReward / 100
         );
-        reservePool = reservePool + (quests[applications[submits[_submitId].applicationId].questId].reward * taxRate);
-        submits[_submitId].status = 1;
-        submits[_submitId].clientReply = _reply;
-        quests[applications[submits[_submitId].applicationId].questId].status = 3;
-    }
-
-    /**
-    * @dev 
-    * 
-    */
-
-    function rejectSubmit(
-        uint _submitId,
-        string memory _reply
-    ) public onlyClient(applications[submits[_submitId].applicationId].questId) {
-        require(quests[applications[submits[_submitId].applicationId].questId].status == 2);
-        submits[_submitId].status = 2;
-        submits[_submitId].clientReply = _reply;
     }
 
 }
