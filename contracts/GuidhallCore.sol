@@ -30,7 +30,8 @@ contract GuildhallCore is CRDIT, Ownable {
     uint confirmationTime = 7 days;
 
     uint8 introducerReward = 4;
-    uint8 tax = 1;
+    uint8 taxRate = 1;
+    uint reservePool = 0;
 
     /**
     * @dev quests is an array which stores every Quest.
@@ -185,13 +186,14 @@ contract GuildhallCore is CRDIT, Ownable {
         _transfer(
             address(this),
             applications[submits[_submitId].applicationId].hero,
-            quests[applications[submits[_submitId].applicationId].questId].reward * (100 - introducerReward - tax) / 100
+            quests[applications[submits[_submitId].applicationId].questId].reward * (100 - introducerReward - taxRate) / 100
         );
         _transfer(
             address(this),
             applications[submits[_submitId].applicationId].introducer,
             quests[applications[submits[_submitId].applicationId].questId].reward * introducerReward / 100
         );
+        reservePool = reservePool + (quests[applications[submits[_submitId].applicationId].questId].reward * taxRate);
         submits[_submitId].status = 1;
         submits[_submitId].clientReply = _reply;
         quests[applications[submits[_submitId].applicationId].questId].status = 3;
