@@ -72,7 +72,7 @@ contract GuildhallCore is CRDIT, Ownable {
     * For status,
     *  0: waiting for client confirmation,
     *  1: submit is accepted,
-    *  2: submit is denied.
+    *  2: submit is rejected.
     */
     struct Submit {
         uint applicationId;
@@ -195,6 +195,20 @@ contract GuildhallCore is CRDIT, Ownable {
         submits[_submitId].status = 1;
         submits[_submitId].clientReply = _reply;
         quests[applications[submits[_submitId].applicationId].questId].status = 3;
+    }
+
+    /**
+    * @dev 
+    * 
+    */
+
+    function rejectSubmit(
+        uint _submitId,
+        string memory _reply
+    ) public onlyClient(applications[submits[_submitId].applicationId].questId) {
+        require(quests[applications[submits[_submitId].applicationId].questId].status == 2);
+        submits[_submitId].status = 2;
+        submits[_submitId].clientReply = _reply;
     }
 
 }
