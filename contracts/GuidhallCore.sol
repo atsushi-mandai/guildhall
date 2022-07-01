@@ -149,6 +149,10 @@ contract GuildhallCore is CRDIT, Ownable {
         confirmationPeriod = _newPeriod;
     }
 
+    function changeTrialPeriod(uint _newPeriod) public onlyOwner {
+        trialPeriod = _newPeriod;
+    }
+
     function withdrawReservePool(uint _amount) public onlyOwner {
         require(_amount <= reservePool);
         reservePool = reservePool - _amount;
