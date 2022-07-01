@@ -31,6 +31,7 @@ contract GuildhallCore is CRDIT, Ownable {
     uint8 trialTaxrate = 5;
     uint8 introducerReward = 4;
     uint confirmationPeriod = 7 days;
+    uint trialPeriod = 90 days;
     uint reservePool = 0;
 
     /**
@@ -86,6 +87,29 @@ contract GuildhallCore is CRDIT, Ownable {
     }
     Submit[] public submits;
 
+    /**
+    * @dev Hero makes a Submit when they complete the quest.
+    * For trial type,
+    *  0: trial was brought to action by a client;
+    *. 1: trial was brought to action by a hero;
+    * For status,
+    *  0: trial is open and is waiting for votes,
+    *  1: trial is closed.
+    */
+    struct Trial {
+        uint applicationId;
+        uint voteDeadline;
+        uint8 trialType;
+        uint8 status;
+        uint8 agreed;
+        uint8 disagreed;
+        address accuserAddress;
+        address defandantAddress;
+        string accuserMessage;
+        string defendantMessage;
+    }
+    Trial[] public trials;
+
 
     /**********
     *
@@ -94,7 +118,7 @@ contract GuildhallCore is CRDIT, Ownable {
     **********/
 
     modifier onlyClient(uint _questId) {
-        require(_msgSender() == quests[_questId].client);
+        require(quests[_questId].client == _msgSender());
         _;
     }
 
@@ -123,6 +147,12 @@ contract GuildhallCore is CRDIT, Ownable {
 
     function changeConfirmationPeriod(uint _newPeriod) public onlyOwner {
         confirmationPeriod = _newPeriod;
+    }
+
+    function withdrawReservePool(uint _amount) public onlyOwner {
+        require(_amount <= reservePool);
+        reservePool = reservePool - _amount;
+        _transfer(address(this), owner(), _amount);
     }
 
 
@@ -225,7 +255,7 @@ contract GuildhallCore is CRDIT, Ownable {
     }
 
     /**
-    * @dev reportExpiration could be pulled by a who has made the submit,
+    * @dev reportExpiration could be called by a hero who has made the submit,
     * when a client didn't approve nor reject the submit until the dueDate.
     */
 
@@ -236,6 +266,10 @@ contract GuildhallCore is CRDIT, Ownable {
         submits[_submitId].clientReply = "Expiration was reported by the hero. This reply is written by the protocol.";
     }
 
+    /**
+    * @dev pendQuest lets a client to pend the quest so that new submits won't be made.
+    * This function should be used when the hero keeps on submitting results without completing the quest he/she was assigned.
+    */
     function pendQuest(uint _questId) public onlyClient(_questId) {
         require(quests[_questId].status == 2);
         quests[_questId].status = 5;
@@ -244,6 +278,40 @@ contract GuildhallCore is CRDIT, Ownable {
     function releasePend(uint _questId) public onlyClient(_questId) {
         require(quests[_questId].status == 5);
         quests[_questId].status = 2;
+    }
+
+    /**
+    * @dev pendQuest lets a client to pend the quest so that new submits won't be made.
+    * This function should be used when the hero keeps on submitting results without completing the quest he/she was assigned.
+    */ 
+
+    function sueHero(
+        uint _applicationId,
+        string memory _message
+    ) public onlyClient(applications[_applicationId].questId) {
+        require(applications[_applicationId].questId == 2);
+        require(applications[_applicationId].isAssigned == true);
+        trials.push(Trial(
+            _applicationId,
+            block.timestamp + trialPeriod,
+            0, 0, 0, 0,
+            _msgSender(), applications[_applicationId].hero,
+            _message, "Waiting for defandant's message."
+        ));
+    }
+
+    function sueClient(
+        uint _applicationId,
+        string memory _message
+    ) public onlyHero(_applicationId) {
+        require(applications[_applicationId].questId == 2);
+        trials.push(Trial(
+            _applicationId,
+            block.timestamp + trialPeriod,
+            1, 0, 0, 0,
+            quests[applications[_applicationId].questId].client, _msgSender(),
+            _message, "Waiting for defandant's message."
+        ));
     }
 
 
