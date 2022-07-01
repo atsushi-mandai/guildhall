@@ -28,7 +28,7 @@ contract GuildhallCore is CRDIT, Ownable {
     **********/
 
     uint8 taxRate = 1;
-    uint8 trialTaxrate = 5;
+    uint8 trialFeeRate = 5;
     uint8 introducerReward = 4;
     uint confirmationPeriod = 7 days;
     uint trialPeriod = 90 days;
@@ -99,17 +99,18 @@ contract GuildhallCore is CRDIT, Ownable {
     struct Trial {
         uint applicationId;
         uint voteDeadline;
+        uint feePool;
+        uint result;
         uint8 trialType;
         uint8 status;
-        uint8 agreed;
-        uint8 disagreed;
+        uint8 votes;
         address accuserAddress;
         address defandantAddress;
         string accuserMessage;
         string defendantMessage;
     }
     Trial[] public trials;
-
+    mapping(uint => mapping(uint => bool)) trialToDirectorToJury;
 
     /**********
     *
@@ -138,6 +139,11 @@ contract GuildhallCore is CRDIT, Ownable {
     function changeTaxRate(uint8 _newRate) public onlyOwner {
         require(_newRate + introducerReward < 100);
         taxRate = _newRate;
+    }
+
+    function changeTrialFeeRate(uint8 _newRate) public onlyOwner {
+        require(_newRate < 100);
+        trialFeeRate = _newRate;
     }
 
     function changeIntroducerReward(uint8 _newReward) public onlyOwner {
@@ -294,14 +300,8 @@ contract GuildhallCore is CRDIT, Ownable {
         string memory _message
     ) public onlyClient(applications[_applicationId].questId) {
         require(applications[_applicationId].questId == 2);
-        require(applications[_applicationId].isAssigned == true);
-        trials.push(Trial(
-            _applicationId,
-            block.timestamp + trialPeriod,
-            0, 0, 0, 0,
-            _msgSender(), applications[_applicationId].hero,
-            _message, "Waiting for defandant's message."
-        ));
+        uint fee = _chargeTrialFee(_applicationId);
+        _createTrial(_applicationId, fee, _message, 0, _msgSender(), applications[_applicationId].hero);
     }
 
     function sueClient(
@@ -309,13 +309,8 @@ contract GuildhallCore is CRDIT, Ownable {
         string memory _message
     ) public onlyHero(_applicationId) {
         require(applications[_applicationId].questId == 2);
-        trials.push(Trial(
-            _applicationId,
-            block.timestamp + trialPeriod,
-            1, 0, 0, 0,
-            quests[applications[_applicationId].questId].client, _msgSender(),
-            _message, "Waiting for defandant's message."
-        ));
+        uint fee = _chargeTrialFee(_applicationId);
+        _createTrial(_applicationId, fee, _message, 1, _msgSender(), quests[applications[_applicationId].questId].client);
     }
 
 
@@ -344,5 +339,29 @@ contract GuildhallCore is CRDIT, Ownable {
             quests[applications[submits[_submitId].applicationId].questId].reward * introducerReward / 100
         );
     }
+
+    function _chargeTrialFee(uint _applicationId) internal returns(uint) {
+        uint fee = quests[applications[_applicationId].questId].reward * trialFeeRate / 100;
+        require(balanceOf(_msgSender()) >= fee);
+        _transfer(_msgSender(), address(this), fee);
+        return fee;
+    }
+
+    function _createTrial(
+        uint _applicationId,
+        uint _fee,
+        string memory _message,
+        uint8 _trialType,
+        address _accuser,
+        address _defandant) internal {
+        trials.push(
+            Trial(
+            _applicationId, block.timestamp + trialPeriod, _fee, 0, _trialType, 0, 0,
+            _accuser, _defandant, _message, "Waiting for a message from defandant."
+            )
+        );
+    }
+
+    //function _assignJuries
 
 }
