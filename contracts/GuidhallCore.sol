@@ -362,6 +362,4 @@ contract GuildhallCore is CRDIT, Ownable {
         );
     }
 
-    //function _assignJuries
-
 }
