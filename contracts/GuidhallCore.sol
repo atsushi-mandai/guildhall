@@ -28,7 +28,7 @@ contract GuildhallCore is CRDIT, Ownable {
     **********/
 
     uint8 taxRate = 1;
-    uint8 trialTaxrate = 5;
+    uint8 trialTaxRate = 5;
     uint8 introducerReward = 4;
     uint confirmationPeriod = 7 days;
     uint trialPeriod = 90 days;
@@ -109,7 +109,7 @@ contract GuildhallCore is CRDIT, Ownable {
         string defendantMessage;
     }
     Trial[] public trials;
-
+    mapping(uint => mapping(uint => bool)) trialToDirectorToJury;
 
     /**********
     *
@@ -138,6 +138,11 @@ contract GuildhallCore is CRDIT, Ownable {
     function changeTaxRate(uint8 _newRate) public onlyOwner {
         require(_newRate + introducerReward < 100);
         taxRate = _newRate;
+    }
+
+    function changeTrialTaxRate(uint8 _newRate) public onlyOwner {
+        require(_newRate < 100);
+        trialTaxRate = _newRate;
     }
 
     function changeIntroducerReward(uint8 _newReward) public onlyOwner {
@@ -295,13 +300,10 @@ contract GuildhallCore is CRDIT, Ownable {
     ) public onlyClient(applications[_applicationId].questId) {
         require(applications[_applicationId].questId == 2);
         require(applications[_applicationId].isAssigned == true);
-        trials.push(Trial(
-            _applicationId,
-            block.timestamp + trialPeriod,
-            0, 0, 0, 0,
-            _msgSender(), applications[_applicationId].hero,
-            _message, "Waiting for defandant's message."
-        ));
+        uint tax = quests[applications[_applicationId].questId].reward * trialTaxRate / 100;
+        require(balanceOf(_msgSender()) >= tax);
+        _transfer(_msgSender(), address(this), tax);
+        _createTrial(_applicationId, _message, 0, _msgSender(), applications[_applicationId].hero);
     }
 
     function sueClient(
@@ -309,13 +311,10 @@ contract GuildhallCore is CRDIT, Ownable {
         string memory _message
     ) public onlyHero(_applicationId) {
         require(applications[_applicationId].questId == 2);
-        trials.push(Trial(
-            _applicationId,
-            block.timestamp + trialPeriod,
-            1, 0, 0, 0,
-            quests[applications[_applicationId].questId].client, _msgSender(),
-            _message, "Waiting for defandant's message."
-        ));
+        uint tax = quests[applications[_applicationId].questId].reward * trialTaxRate / 100;
+        require(balanceOf(_msgSender()) >= tax);
+        _transfer(_msgSender(), address(this), tax);
+        _createTrial(_applicationId, _message, 1, _msgSender(), quests[applications[_applicationId].questId].client);
     }
 
 
@@ -343,6 +342,21 @@ contract GuildhallCore is CRDIT, Ownable {
             applications[submits[_submitId].applicationId].introducer,
             quests[applications[submits[_submitId].applicationId].questId].reward * introducerReward / 100
         );
+    }
+
+    function _createTrial(
+        uint _applicationId,
+        string memory _message,
+        uint8 _trialType,
+        address _accuser,
+        address _defandant) internal {
+        trials.push(Trial(
+            _applicationId,
+            block.timestamp + trialPeriod,
+            _trialType, 0, 0, 0,
+            _accuser, _defandant,
+            _message, "Waiting for a message from defandant."
+        ));
     }
 
 }
