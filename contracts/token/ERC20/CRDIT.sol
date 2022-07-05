@@ -33,7 +33,7 @@ contract CRDIT is ERC20Capped, Ownable {
     /**
     * @dev Everytime a transaction is made, {tax / 10000} will be burned from reciever's balance.
     */
-    uint8 private _tax = 1;
+    uint8 private _tax = 5;
 
     /**
     * @dev Mint limit for an address must be under {totalSupply * _mintAddLimit / 100}.
@@ -73,6 +73,13 @@ contract CRDIT is ERC20Capped, Ownable {
     */
     function mintLimitOf(address _address) public view returns(uint) {
         return _addressToMintLimit[_address];
+    }
+
+    /**
+    * @dev Returns the amount after deducting tax.
+    */
+    function afterTax(uint _amount) public view returns(uint) {
+        return _amount - (_amount * _tax / 10000);
     }
 
 
