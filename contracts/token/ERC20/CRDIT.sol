@@ -59,9 +59,8 @@ contract CRDIT is ERC20Capped, Ownable {
     }
 
     /**
-    * @dev Sets new uint for the _tax.
+    * @dev Sets new value for _tax.
     */
-
     function changeTax(uint8 _newTax) public onlyOwner returns(bool) {
         _tax = _newTax;
         return true;
@@ -102,11 +101,27 @@ contract CRDIT is ERC20Capped, Ownable {
     *
     */
 
+    /**
+    * @dev Sets mint limit for an address.
+    */
+    function setMintLimit(
+        address allowedAddress,
+        uint256 limit
+    ) public onlyOwner returns(bool) {
+        require(limit <= cap() - totalSupply());
+        _addressToMintLimit[allowedAddress] = limit;
+        return true;
+    }
+
+    /**
+    * @dev Lets an address mint CRDIT within its limit.
+    */
     function publicMint(
         address to, 
         uint256 amount
     ) public returns(bool) {
         require(amount <= _addressToMintLimit[_msgSender()], "This contract has reached its mint limit.");
+        _addressToMintLimit[_msgSender()] = _addressToMintLimit[_msgSender()] - amount;
         _mint(to, amount);
         return true;
     }
