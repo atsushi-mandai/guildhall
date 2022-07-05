@@ -21,16 +21,6 @@ contract CRDIT is ERC20Capped, Ownable {
     *
     */
 
-    /**
-    * @dev Everytime the transaction is made, {tax / 1000} will be burned.
-    */
-    uint8 private _tax = 1;
-    
-    /**
-    * @dev 
-    */
-    mapping(address => uint256) private _addressToMintLimit;
-
     /** 
     * @dev ERC20 Token "Credit" (ticker "CRDIT") has max supply of 100,000,000.
     * Founder takes 10% of the max supply as an incentive for him and early collaborators.
@@ -41,22 +31,71 @@ contract CRDIT is ERC20Capped, Ownable {
         ERC20._mint(_msgSender(),10000000 * (10**uint256(18)));
     }
 
+    /**
+    * @dev Amount of CRDIT balance required for anyone to create a proposal
+    * is {totalSupply * _requiredBalance / 100}
+    */
+    uint8 private _requiredBalance;
+
+    /**
+    * @dev Everytime a transaction is made, {tax / 1000} will be burned from reciever's balance.
+    */
+    uint8 private _tax = 1;
+    
+    /**
+    * @dev Keeps the mint limit approved for each address.
+    */
+    mapping(address => uint256) private _addressToMintLimit;
+
+    /**
+    * @dev A proposal to set a new value for _tax
+    */
+    struct TaxProposal {
+        uint8 newTax;
+        uint votes;
+        uint deadline;
+    }
+    TaxProposal[] private _taxProposals;
+    uint private _lastTaxProposal;
+
 
     /**
     *
     *
     * @dev
-    * public functions associated with salesTax.
+    * public functions
     *
     *
     */
 
     /**
-    * @dev Returns the current salesTax.
+    * @dev Returns the current _requiredBalance.
     */
-    function salesTax() public view returns (uint) {
+    function requiredBalance() public view returns(uint8) {
+        return _requiredBalance;
+    }
+
+    /**
+    * @dev Returns the current _salesTax.
+    */
+    function tax() public view returns (uint) {
         return _tax;
     }
+
+    function createTaxProposal(uint8 newTax) public {
+        _checkRequiredBalance();
+        require(block.timestamp >= _lastTaxProposal + 30 days);
+        _taxProposals.push(TaxProposal(newTax, 0, block.timestamp + 7 days));
+        _lastTaxProposal = block.timestamp;
+    }
+
+    function voteForProposal(uint256 proposalId, uint256 amount) public {
+        require(block.timestamp <= _taxProposals[proposalId].deadline);
+        _transfer(_msgSender(), address(this), amount);
+        _taxProposals[proposalId].votes = _taxProposals[proposalId].votes + amount;
+    }
+
+    //function unvoteForProposal
 
     /**
     * @dev Sets new value for _tax.
@@ -93,15 +132,6 @@ contract CRDIT is ERC20Capped, Ownable {
     }
 
     /**
-    *
-    *
-    * @dev
-    * public functions associated with publicMint.
-    *
-    *
-    */
-
-    /**
     * @dev Sets mint limit for an address.
     */
     function setMintLimit(
@@ -126,5 +156,18 @@ contract CRDIT is ERC20Capped, Ownable {
         return true;
     }
 
+
+    /**
+    *
+    *
+    * @dev
+    * internal functions
+    *
+    *
+    */
+
+    function _checkRequiredBalance() private view {
+        require(balanceOf(_msgSender()) >= totalSupply() * _requiredBalance / 100, "Not enough CRDIT balance to create a proposal.");
+    }
 
 }
