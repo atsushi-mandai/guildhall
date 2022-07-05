@@ -8,15 +8,14 @@ import "../../access/Ownable.sol";
 
 /// @title CRDIT
 /// @author Atsushi Mandai
-/// @notice Basic functions of the ERC20 Token CRDIT for Guildhall will be written here.
+/// @notice Basic functions of the ERC20 Token CRDIT.
 contract CRDIT is ERC20Capped, Ownable {
 
 
     /**
     *
     *
-    * @dev
-    * variables
+    * @dev variables
     *
     *
     */
@@ -32,70 +31,58 @@ contract CRDIT is ERC20Capped, Ownable {
     }
 
     /**
-    * @dev Amount of CRDIT balance required for anyone to create a proposal
-    * is {totalSupply * _requiredBalance / 100}
-    */
-    uint8 private _requiredBalance;
-
-    /**
-    * @dev Everytime a transaction is made, {tax / 1000} will be burned from reciever's balance.
+    * @dev Everytime a transaction is made, {tax / 10000} will be burned from reciever's balance.
     */
     uint8 private _tax = 1;
+
+    /**
+    * @dev Mint limit for an address must be under {totalSupply * _mintAddLimit / 100}.
+    */
+    uint8 private _mintAddLimit = 5;
     
     /**
     * @dev Keeps the mint limit approved for each address.
     */
     mapping(address => uint256) private _addressToMintLimit;
 
-    /**
-    * @dev A proposal to set a new value for _tax
-    */
-    struct TaxProposal {
-        uint8 newTax;
-        uint votes;
-        uint deadline;
-    }
-    TaxProposal[] private _taxProposals;
-    uint private _lastTaxProposal;
-
 
     /**
     *
     *
-    * @dev
-    * public functions
+    * @dev public view functions
     *
     *
     */
 
     /**
-    * @dev Returns the current _requiredBalance.
+    * @dev Returns _salesTax.
     */
-    function requiredBalance() public view returns(uint8) {
-        return _requiredBalance;
-    }
-
-    /**
-    * @dev Returns the current _salesTax.
-    */
-    function tax() public view returns (uint) {
+    function tax() public view returns(uint8) {
         return _tax;
     }
 
-    function createTaxProposal(uint8 newTax) public {
-        _checkRequiredBalance();
-        require(block.timestamp >= _lastTaxProposal + 30 days);
-        _taxProposals.push(TaxProposal(newTax, 0, block.timestamp + 7 days));
-        _lastTaxProposal = block.timestamp;
+    /**
+    * @dev Returns _mintAddLimit.
+    */
+    function mintAddLimit() public view returns(uint8) {
+        return _mintAddLimit;
     }
 
-    function voteForProposal(uint256 proposalId, uint256 amount) public {
-        require(block.timestamp <= _taxProposals[proposalId].deadline);
-        _transfer(_msgSender(), address(this), amount);
-        _taxProposals[proposalId].votes = _taxProposals[proposalId].votes + amount;
+    /**
+    * @dev Returns mint limit of an address.
+    */
+    function mintLimitOf(address _address) public view returns(uint) {
+        return _addressToMintLimit[_address];
     }
 
-    //function unvoteForProposal
+
+    /**
+    *
+    *
+    * @dev public governance functions
+    *
+    *
+    */
 
     /**
     * @dev Sets new value for _tax.
@@ -104,70 +91,67 @@ contract CRDIT is ERC20Capped, Ownable {
         _tax = _newTax;
         return true;
     }
-    
 
     /**
-    * @dev tax is added to the transfer.
+    * @dev Sets new value for _mintAddLimit.
     */
-    function transfer(address to, uint256 amount) public virtual override returns (bool) {
-        address owner = _msgSender();
-        _transfer(owner, to, amount);
-        _burn(to, amount * _tax / 1000);
+    function changeMintAddLimit(uint8 _newLimit) public onlyOwner returns(bool) {
+        _mintAddLimit = _newLimit;
         return true;
     }
 
     /**
-    * @dev tax is added to the transferFrom.
+    * @dev Sets new mint limit to an address.
+    */
+    function changeMintLimit(address _address, uint _amount) public onlyOwner returns(bool) {
+        require(_amount < totalSupply() * _mintAddLimit / 100);
+        require(_amount <= cap() - totalSupply());
+        _addressToMintLimit[_address] = _amount;
+        return true;
+    }
+
+
+    /**
+    *
+    *
+    * @dev public utility functions
+    *
+    *
+    */
+
+    /**
+    * @dev override transfer() with tax.
+    */
+    function transfer(address _to, uint256 _amount) public virtual override returns (bool) {
+        address owner = _msgSender();
+        _transfer(owner, _to, _amount);
+        _burn(_to, _amount * _tax / 10000);
+        return true;
+    }
+
+    /**
+    * @dev override transferFrom() with tax.
     */
     function transferFrom(
-        address from,
-        address to,
-        uint256 amount
+        address _from,
+        address _to,
+        uint256 _amount
     ) public virtual override returns (bool) {
         address spender = _msgSender();
-        _spendAllowance(from, spender, amount);
-        _transfer(from, to, amount);
-        _burn(to, amount * _tax / 1000);
-        return true;
-    }
-
-    /**
-    * @dev Sets mint limit for an address.
-    */
-    function setMintLimit(
-        address allowedAddress,
-        uint256 limit
-    ) public onlyOwner returns(bool) {
-        require(limit <= cap() - totalSupply());
-        _addressToMintLimit[allowedAddress] = limit;
+        _spendAllowance(_from, spender, _amount);
+        _transfer(_from, _to, _amount);
+        _burn(_to, _amount * _tax / 10000);
         return true;
     }
 
     /**
     * @dev Lets an address mint CRDIT within its limit.
     */
-    function publicMint(
-        address to, 
-        uint256 amount
-    ) public returns(bool) {
-        require(amount <= _addressToMintLimit[_msgSender()], "This contract has reached its mint limit.");
-        _addressToMintLimit[_msgSender()] = _addressToMintLimit[_msgSender()] - amount;
-        _mint(to, amount);
+    function publicMint(address _to, uint256 _amount) public returns(bool) {
+        require(_amount <= _addressToMintLimit[_msgSender()], "This contract has reached its mint limit.");
+        _addressToMintLimit[_msgSender()] = _addressToMintLimit[_msgSender()] - _amount;
+        _mint(_to, _amount);
         return true;
-    }
-
-
-    /**
-    *
-    *
-    * @dev
-    * internal functions
-    *
-    *
-    */
-
-    function _checkRequiredBalance() private view {
-        require(balanceOf(_msgSender()) >= totalSupply() * _requiredBalance / 100, "Not enough CRDIT balance to create a proposal.");
     }
 
 }
