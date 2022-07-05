@@ -6,6 +6,7 @@ pragma solidity ^0.8.0;
 import "./token/ERC20/CRDIT.sol";
 import "./access/Ownable.sol";
 import "./utils/math/SafeMath.sol";
+//import "./token/ERC721/DirectorsClub.sol";
 
 /// @title GuildhallCore
 /// @author Atsushi Mandai
